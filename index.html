@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <!-- SEO & Metadata -->
+    <title>Morphosphere: An Interactive WebGL Experience</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A captivating, interactive WebGL shader experience. Manipulate a morphing sphere of light and color in real-time.">
+    <meta name="keywords" content="Morphosphere, WebGL, generative art, interactive art, shader, visualizer, three.js, web development, creative coding, real-time graphics">
+    <meta name="author" content="Chris Pirillo">
+    <link rel="canonical" href="https://pirillo.com/arcade/morphosphere.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pirillo.com/arcade/morphosphere.html">
+    <meta property="og:title" content="Morphosphere: An Interactive WebGL Experience">
+    <meta property="og:description" content="A captivating, interactive WebGL shader experience where you can manipulate a morphing sphere of light and color.">
+    <meta property="og:image" content="https://pirillo.com/arcade/images/morphosphere.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Pirillo's Arcade">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://pirillo.com/arcade/morphosphere.html">
+    <meta name="twitter:title" content="Morphosphere: An Interactive WebGL Experience">
+    <meta name="twitter:description" content="A captivating, interactive WebGL shader experience where you can manipulate a morphing sphere of light and color.">
+    <meta name="twitter:image" content="https://pirillo.com/arcade/images/morphosphere.png">
+    <meta name="twitter:creator" content="@ChrisPirillo">
+    <meta name="twitter:site" content="@ChrisPirillo">
+
+    <!-- 
+      Performance Optimization: Resource Hints
+      - Preconnect: Establishes an early connection to critical third-party origins.
+      - Preload: Fetches critical resources with high priority without executing them.
+    -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap"></noscript>
+    
+    <!-- Critical Scripts - Tailwind is not deferred as requested. three.js is deferred. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+
+    <!-- 
+      JSON-LD Structured Data for Rich Snippets
+      Describes the page as a WebApplication to search engines.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Morphosphere",
+      "url": "https://pirillo.com/arcade/morphosphere.html",
+      "description": "A captivating, interactive WebGL shader experience where you can manipulate a morphing sphere of light and color in real-time.",
+      "applicationCategory": "Game",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript and WebGL support.",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://chris.pirillo.com/"
+      },
+      "publisher": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://chris.pirillo.com/"
+      },
+      "image": "https://pirillo.com/arcade/images/morphosphere.png"
+    }
+    </script>
+
+    <!-- Critical CSS for initial page layout -->
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            background-color: #000;
+            color: #fff; /* Added for better fallback text visibility */
+        }
+        #shader-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #menu-open-btn {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 101; 
+        }
+        #menu {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 100;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s;
+            transform: translateY(-20px) translateX(20px) scale(0.95);
+            opacity: 0;
+            visibility: hidden; /* Use visibility to prevent interaction when closed */
+        }
+        #menu.open {
+            transform: translateY(0) translateX(0) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+        .control-label span:first-child {
+            font-weight: bold;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #00ddff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #0d1a2e;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #00ddff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #0d1a2e;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    
+    <!-- Semantic HTML Structure -->
+    <header>
+        <h1 class="sr-only">Morphosphere Interactive Controls</h1>
+        <!-- Menu Open Button -->
+        <button id="menu-open-btn" class="p-2 rounded-md text-white bg-black bg-opacity-50 hover:bg-opacity-75 transition-colors" aria-label="Open controls menu">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+
+        <!-- Controls Menu -->
+        <nav id="menu" class="w-80 bg-black bg-opacity-70 backdrop-blur-sm text-white p-6 rounded-lg shadow-2xl max-h-[calc(100vh-5rem)] overflow-y-auto" aria-labelledby="menu-title">
+            <div class="flex justify-between items-center mb-4 border-b-2 border-cyan-400 pb-2">
+                <h2 id="menu-title" class="text-2xl font-bold">Morphosphere</h2>
+                <button id="menu-close-btn" class="p-1 rounded-md hover:bg-white/20 transition-colors" aria-label="Close controls menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Iterations -->
+                <div>
+                    <label for="iterations" class="control-label"><span>Iterations</span><span id="iterations-value">150</span></label>
+                    <input id="iterations" type="range" min="15" max="150" value="150" step="1" class="w-full">
+                </div>
+                
+                <!-- Time Divisor -->
+                <div>
+                    <label for="timeDivisor" class="control-label"><span>Anim Speed</span><span id="timeDivisor-value">4.00</span></label>
+                    <input id="timeDivisor" type="range" min="0.1" max="20" value="4" step="0.1" class="w-full">
+                </div>
+                
+                <!-- Z Offset -->
+                <div>
+                    <label for="zOffset" class="control-label"><span>Z Offset</span><span id="zOffset-value">8.00</span></label>
+                    <input id="zOffset" type="range" min="0" max="20" value="8" step="0.1" class="w-full">
+                </div>
+
+                <!-- Min Distance -->
+                <div>
+                    <label for="dMin" class="control-label"><span>Min Distance</span><span id="dMin-value">0.010</span></label>
+                    <input id="dMin" type="range" min="0.001" max="0.1" value="0.01" step="0.001" class="w-full">
+                </div>
+
+                <!-- Distance Scale -->
+                <div>
+                    <label for="dScale" class="control-label"><span>Distance Scale</span><span id="dScale-value">0.30</span></label>
+                    <input id="dScale" type="range" min="0.01" max="1.0" value="0.3" step="0.01" class="w-full">
+                </div>
+
+                <!-- Sine Divisor -->
+                <div>
+                    <label for="sinDivisor" class="control-label"><span>Wave Freq</span><span id="sinDivisor-value">0.60</span></label>
+                    <input id="sinDivisor" type="range" min="0.1" max="2.0" value="0.6" step="0.01" class="w-full">
+                </div>
+
+                <!-- Dot Divisor -->
+                <div>
+                    <label for="dotDivisor" class="control-label"><span>Dot Divisor</span><span id="dotDivisor-value">0.30</span></label>
+                    <input id="dotDivisor" type="range" min="0.1" max="2.0" value="0.3" step="0.01" class="w-full">
+                </div>
+
+                <!-- Length Subtract -->
+                <div>
+                    <label for="lengthSub" class="control-label"><span>Shape Size</span><span id="lengthSub-value">5.00</span></label>
+                    <input id="lengthSub" type="range" min="0.1" max="10.0" value="5.0" step="0.1" class="w-full">
+                </div>
+
+                <!-- Iteration Divisor -->
+                <div>
+                    <label for="iterDivisor" class="control-label"><span>Detail Falloff</span><span id="iterDivisor-value">80</span></label>
+                    <input id="iterDivisor" type="range" min="10" max="200" value="80" step="1" class="w-full">
+                </div>
+
+                <!-- Output Sine Multiplier -->
+                <div>
+                    <label for="oSineMult" class="control-label"><span>Glow Sine</span><span id="oSineMult-value">0.30</span></label>
+                    <input id="oSineMult" type="range" min="0.0" max="2.0" value="0.3" step="0.01" class="w-full">
+                </div>
+
+                <!-- Output Divisor -->
+                <div>
+                    <label for="oDivisor" class="control-label"><span>Glow Intensity</span><span id="oDivisor-value">2000</span></label>
+                    <input id="oDivisor" type="range" min="10" max="2000" value="2000" step="10" class="w-full">
+                </div>
+
+                <!-- Color Vector -->
+                <fieldset class="pt-2">
+                    <legend class="control-label"><span>Color</span></legend>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label for="colorR" class="text-xs text-red-400">Red</label>
+                            <input id="colorR" type="range" min="0" max="10" value="2" step="0.1" class="w-full">
+                        </div>
+                        <div>
+                            <label for="colorG" class="text-xs text-green-400">Green</label>
+                            <input id="colorG" type="range" min="0" max="10" value="2" step="0.1" class="w-full">
+                        </div>
+                        <div>
+                            <label for="colorB" class="text-xs text-blue-400">Blue</label>
+                            <input id="colorB" type="range" min="0" max="10" value="2" step="0.1" class="w-full">
+                        </div>
+                    </div>
+                </fieldset>
+                 <!-- Action Buttons -->
+                <div class="pt-4 grid grid-cols-2 gap-4">
+                    <button id="reset-button" class="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-2 px-4 rounded transition-colors">
+                        Reset
+                    </button>
+                    <button id="randomize-button" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded transition-colors">
+                        Randomize
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <h1 class="sr-only">Morphosphere Main Visualizer</h1>
+        <canvas id="shader-canvas"></canvas>
+    </main>
+
+    <!-- 
+      ==================================================================
+      UNMODIFIED PRODUCTION JAVASCRIPT
+      The following script is the core application logic.
+      It has not been altered, as per performance engineering requirements.
+      ==================================================================
+    -->
+    <script type="module">
+        // --- Basic Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('shader-canvas') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // --- Shader Code ---
+        const vertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            varying vec2 vUv;
+            uniform vec2 u_resolution;
+            uniform float u_time;
+
+            // User-configurable uniforms
+            uniform float u_iterations;
+            uniform float u_time_divisor;
+            uniform float u_z_offset;
+            uniform float u_d_min;
+            uniform float u_d_scale;
+            uniform vec3 u_color_vec; // For color only
+            uniform vec3 u_anim_vec;  // For animation only
+            uniform float u_sin_divisor;
+            uniform float u_dot_divisor;
+            uniform float u_length_sub;
+            uniform float u_iter_divisor;
+            uniform float u_o_sin_mult;
+            uniform float u_tanh_add;
+            uniform float u_o_divisor;
+
+            void main() {
+                vec2 FC = gl_FragCoord.xy;
+                vec2 r = u_resolution;
+                float t = u_time;
+                vec3 o = vec3(0.0);
+                
+                float z = 0.0; // Current ray distance
+                float d = 0.0; // Distance to scene from current ray position
+                
+                vec3 base_direction_vector = vec3(FC.x * 2.0 - r.x, FC.y * 2.0 - r.y, -r.y); 
+                
+                for(float i = 1.0; i <= u_iterations; i += 1.0) {
+                    vec3 p = z * normalize(base_direction_vector); 
+                    p.z += u_z_offset; 
+                    
+                    vec3 a = normalize(cos(u_anim_vec + t / u_time_divisor));
+                    a = a * dot(a, p) - cross(a, p);
+                    
+                    d = u_d_min + u_d_scale * abs(
+                        max(
+                            sin(dot(cos(a), sin(a / u_sin_divisor).yzx) / u_dot_divisor),
+                            length(a) - u_length_sub
+                        ) - i / u_iter_divisor
+                    );
+                    
+                    z += d;
+                    
+                    if (length(u_color_vec) > 0.0) {
+                         o += normalize(u_color_vec) * (sin(i * u_o_sin_mult) / (d + 1e-6));
+                    } else {
+                         o += vec3(1.0) * (sin(i * u_o_sin_mult) / (d + 1e-6));
+                    }
+                   
+                    if (z > 100.0 || d < 0.0001) break;
+                }
+                
+                o = tanh(u_tanh_add + o / u_o_divisor);
+                
+                gl_FragColor = vec4(o, 1.0);
+            }
+        `;
+
+        // --- Shader Material ---
+        const uniforms = {
+            u_time: { value: 0.0 },
+            u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            u_iterations: { value: 150.0 },
+            u_time_divisor: { value: 4.0 },
+            u_z_offset: { value: 8.0 },
+            u_d_min: { value: 0.01 },
+            u_d_scale: { value: 0.3 },
+            u_color_vec: { value: new THREE.Vector3(2.0, 2.0, 2.0) },
+            u_anim_vec: { value: new THREE.Vector3(0.0, 2.0, 4.0) },
+            u_sin_divisor: { value: 0.6 },
+            u_dot_divisor: { value: 0.3 },
+            u_length_sub: { value: 5.0 },
+            u_iter_divisor: { value: 80.0 },
+            u_o_sin_mult: { value: 0.3 },
+            u_tanh_add: { value: 0.7 },
+            u_o_divisor: { value: 2000.0 }, // Reverted to original default
+        };
+        
+        const material = new THREE.ShaderMaterial({
+            vertexShader,
+            fragmentShader,
+            uniforms,
+        });
+
+        const plane = new THREE.PlaneGeometry(2, 2);
+        const mesh = new THREE.Mesh(plane, material);
+        scene.add(mesh);
+
+        // --- UI Controls ---
+        const menu = document.getElementById('menu');
+        const menuOpenBtn = document.getElementById('menu-open-btn');
+        const menuCloseBtn = document.getElementById('menu-close-btn');
+
+        menuOpenBtn.addEventListener('click', () => {
+            menu.classList.add('open');
+            menuOpenBtn.classList.add('hidden');
+        });
+
+        menuCloseBtn.addEventListener('click', () => {
+            menu.classList.remove('open');
+            menuOpenBtn.classList.remove('hidden');
+        });
+        
+        const controls = [
+            { id: 'iterations', uniform: 'u_iterations', valueId: 'iterations-value', type: 'float', precision: 0 },
+            { id: 'timeDivisor', uniform: 'u_time_divisor', valueId: 'timeDivisor-value', type: 'float' },
+            { id: 'zOffset', uniform: 'u_z_offset', valueId: 'zOffset-value', type: 'float' },
+            { id: 'dMin', uniform: 'u_d_min', valueId: 'dMin-value', type: 'float', precision: 3 },
+            { id: 'dScale', uniform: 'u_d_scale', valueId: 'dScale-value', type: 'float' },
+            { id: 'sinDivisor', uniform: 'u_sin_divisor', valueId: 'sinDivisor-value', type: 'float' },
+            { id: 'dotDivisor', uniform: 'u_dot_divisor', valueId: 'dotDivisor-value', type: 'float' },
+            { id: 'lengthSub', uniform: 'u_length_sub', valueId: 'lengthSub-value', type: 'float' },
+            { id: 'iterDivisor', uniform: 'u_iter_divisor', valueId: 'iterDivisor-value', type: 'float', precision: 0 },
+            { id: 'oSineMult', uniform: 'u_o_sin_mult', valueId: 'oSineMult-value', type: 'float' },
+            { id: 'oDivisor', uniform: 'u_o_divisor', valueId: 'oDivisor-value', type: 'float', precision: 0 },
+            { id: 'colorR', uniform: 'u_color_vec', component: 'x', type: 'vec' },
+            { id: 'colorG', uniform: 'u_color_vec', component: 'y', type: 'vec' },
+            { id: 'colorB', uniform: 'u_color_vec', component: 'z', type: 'vec' },
+        ];
+        
+        function setupControls() {
+            controls.forEach(control => {
+                const input = document.getElementById(control.id);
+                if (!input) return;
+
+                input.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    if (control.type === 'float') {
+                        uniforms[control.uniform].value = value;
+                        const valueEl = document.getElementById(control.valueId);
+                        if (valueEl) {
+                            const precision = control.precision === undefined ? 2 : control.precision;
+                            valueEl.textContent = value.toFixed(precision);
+                        }
+                    } else if (control.type === 'vec') {
+                        uniforms[control.uniform].value[control.component] = value;
+                    }
+                });
+            });
+        }
+        
+        function updateUIFromUniforms() {
+            controls.forEach(control => {
+                const input = document.getElementById(control.id);
+                if (!input) return;
+
+                let value;
+                if (control.type === 'float') {
+                    value = uniforms[control.uniform].value;
+                    const valueEl = document.getElementById(control.valueId);
+                    if (valueEl) {
+                        const precision = control.precision === undefined ? 2 : control.precision;
+                        valueEl.textContent = value.toFixed(precision);
+                    }
+                } else if (control.type === 'vec') {
+                    value = uniforms[control.uniform].value[control.component];
+                }
+                input.value = value;
+            });
+        }
+        
+        function resetToDefaults() {
+            uniforms.u_iterations.value = 150.0;
+            uniforms.u_time_divisor.value = 4.0;
+            uniforms.u_z_offset.value = 8.0;
+            uniforms.u_d_min.value = 0.01;
+            uniforms.u_d_scale.value = 0.3;
+            uniforms.u_color_vec.value.set(2.0, 2.0, 2.0);
+            uniforms.u_sin_divisor.value = 0.6;
+            uniforms.u_dot_divisor.value = 0.3;
+            uniforms.u_length_sub.value = 5.0;
+            uniforms.u_iter_divisor.value = 80.0;
+            uniforms.u_o_sin_mult.value = 0.3;
+            uniforms.u_o_divisor.value = 2000.0; 
+            updateUIFromUniforms();
+        }
+
+        function randomizeControls() {
+            controls.forEach(control => {
+                const input = document.getElementById(control.id);
+                if (!input) return;
+
+                const min = parseFloat(input.min);
+                const max = parseFloat(input.max);
+                const step = parseFloat(input.step) || 0.01;
+                
+                const randomVal = min + Math.random() * (max - min);
+                const steppedVal = Math.round(randomVal / step) * step;
+
+                if (control.type === 'float') {
+                    uniforms[control.uniform].value = steppedVal;
+                } else if (control.type === 'vec') {
+                    uniforms[control.uniform].value[control.component] = steppedVal;
+                }
+            });
+            updateUIFromUniforms();
+        }
+
+        document.getElementById('reset-button').addEventListener('click', resetToDefaults);
+        document.getElementById('randomize-button').addEventListener('click', randomizeControls);
+
+        // --- Render Loop ---
+        function animate(time) {
+            requestAnimationFrame(animate);
+            uniforms.u_time.value = time * 0.001;
+            renderer.render(scene, camera);
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Initialization ---
+        setupControls();
+        updateUIFromUniforms();
+        animate(0);
+
+    </script>
+</body>
+</html>
